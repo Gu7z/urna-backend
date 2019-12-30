@@ -11,7 +11,8 @@ mongoose.connect('mongodb://localhost:27017/urna', {useNewUrlParser: true, useUn
 var peopleSchema = new mongoose.Schema({
     name: String,
     desc: String,
-    image: String
+    image: String,
+    votes: ''
 });
 
 var voteSchema = new mongoose.Schema({
@@ -61,66 +62,18 @@ app.post('/novo', async (req, res)=>{
 app.post('/vote', async (req, res) => {
     console.log(req.body)
     var salvo = false;
-    var vote = new Vote(req.body)
-    await vote.save()
-    .then(
-        data => salvo = true
-    )
-    .catch(
-        err => {salvo = false; res.status(400).send("Nao foi possivel computar o voto")}
-    )
-
-    if ( salvo ){
-        res.send('Computado')
-    }else{
-        res.send('Nao enviado')
-    }
-
-    res.end()
+    People.update(
+        {_id: req.body.id},
+        {$push: {votes: {voto: req.body.id}}}
+    ).then(res.end())
 })
 
-app.get('/contar', async(req, res)=>{
-    var finalResult = [];
-    var isDone = false;
-    var getcountObj
-    
-    Vote.aggregate(
-        [
-            {
-                $group: 
-                {
-                    _id: "$vote", count: {$sum: 1}
-                }
-            }
-        ]
-    ).then( async (qr) => { 
-
-        var results = qr.map( async (countObj) => {
-
-            await People.find({_id: countObj._id}, {name: 1, _id: 0}).then( (qrry) => {
-                
-                qrry.map( pessoaObj => {
-                    result = {
-                        name: pessoaObj.name,
-                        votes: countObj.count
-                    }
-
-                    finalResult = result
-                } )
-
-            } )
-
-            return(finalResult);
-
-        } )
-
-        Promise.all(results).then((completed) => {
-            res.send(completed)
-        })
-
-    } )
-
-    
+app.get('/count', async(req, res)=>{    
+    People.find().then( async (qr) => { 
+        var result = []; 
+        qr.map(data => result = [...result, {name: data.name, votes: data.votes.length}]); 
+        res.send(result) 
+    } )    
 })
 
 app.listen(port, ()=> console.log(`Rodando na porta: ${port}`))
