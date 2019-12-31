@@ -5,6 +5,8 @@ var cors = require('cors')
 
 const app = express()
 const port = 3001
+var server = app.listen(port, ()=> console.log(`Rodando na porta: ${port}`))
+var io = require('socket.io').listen(server);
 
 mongoose.connect('mongodb://localhost:27017/urna', {useNewUrlParser: true, useUnifiedTopology: true});
 
@@ -19,12 +21,11 @@ var voteSchema = new mongoose.Schema({
     vote: String
 });
 
-
 var People = mongoose.model('people', peopleSchema);
 var Vote = mongoose.model('vote', voteSchema);
 
 app.use(bodyParser.json());
-app.use(cors())
+app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
 
 app.get('/', async (req, res)=>{
     var result;
@@ -60,7 +61,6 @@ app.post('/novo', async (req, res)=>{
 })
 
 app.post('/vote', async (req, res) => {
-    console.log(req.body)
     var salvo = false;
     People.update(
         {_id: req.body.id},
@@ -76,4 +76,10 @@ app.get('/count', async(req, res)=>{
     } )    
 })
 
-app.listen(port, ()=> console.log(`Rodando na porta: ${port}`))
+io.on("connection", socket => {
+    socket.on( 'vai', (data) => {
+        console.log(data)
+        socket.broadcast.emit('foi', {nome: data})
+    } )
+});
+
