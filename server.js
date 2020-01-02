@@ -17,19 +17,21 @@ var peopleSchema = new mongoose.Schema({
     votes: ''
 });
 
-var voteSchema = new mongoose.Schema({
-    vote: String
+var eleitSchema = new mongoose.Schema({
+    nome: String,
+    ra: String,
+    javotou: Boolean
 });
 
 var People = mongoose.model('people', peopleSchema);
-var Vote = mongoose.model('vote', voteSchema);
+var Eleitor = mongoose.model('eleitore', eleitSchema);
 
 app.use(bodyParser.json());
 app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
 
 app.get('/', async (req, res)=>{
     var result;
-    await People.find().then(item=>{
+    await People.find({}, {votes: 0}).then(item=>{
         result = item
     }).catch(
         result = 'Nao encontrado'
@@ -77,9 +79,13 @@ app.get('/count', async(req, res)=>{
 })
 
 io.on("connection", socket => {
-    socket.on( 'vai', (data) => {
-        console.log(data)
-        socket.broadcast.emit('foi', {nome: data})
+    socket.on( 'enviaRa', (data) => {
+        Eleitor.findOne({'ra': data, 'javotou': false}).then(eleitor => {
+            if (!eleitor) {return}
+            io.emit('votar', eleitor)
+            Eleitor.update({'ra': data}, {'javotou': true}).then()
+        })      
     } )
+    socket.on( 'fim', () => {io.emit('fimVotar')} )
 });
 
